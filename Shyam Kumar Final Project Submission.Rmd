@@ -1,0 +1,91 @@
+---
+title: "Final Project Submission"
+author: "Shyam Kumar"
+date: "2024-12-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load Data
+
+```{r}
+# Set working directory
+setwd("~/Downloads")
+
+# Load necessary libraries
+library(ggplot2)
+library(maps)
+library(haven)
+
+# Load the dataset
+dataset <- readRDS("cumulative_2006-2023.rds")
+```
+
+# Filter for Hindu Voters
+
+```{r}
+# Convert 'religion' to character and filter Hindu respondents
+dataset$religion <- as.character(as_factor(dataset$religion))
+hindu_data <- dataset[dataset$religion == "Hindu", ]
+
+# Ensure 'year' is numeric (if it exists as a factor or character)
+hindu_data$year <- as.numeric(hindu_data$year)
+
+# Count Hindu respondents by state and year using table()
+hindu_by_state_year <- as.data.frame(table(tolower(hindu_data$state), hindu_data$year))
+colnames(hindu_by_state_year) <- c("state", "year", "count")
+
+```
+
+#Create Map Visualization 
+
+```{r}
+
+# Get US map data
+us_map <- map_data("state")
+
+# Merge Hindu data with map data for each year
+hindu_map_data <- merge(us_map, hindu_by_state_year, by.x = "region", by.y = "state", all.x = TRUE)
+
+# Replace NA counts with 0 for states with no Hindu respondents
+hindu_map_data$count[is.na(hindu_map_data$count)] <- 0
+
+# Ensure 'year' is a factor for faceting
+hindu_map_data$year <- as.factor(hindu_map_data$year)
+
+# Calculate the global maximum count for fixing the scale
+max_count <- max(hindu_map_data$count, na.rm = TRUE)
+
+# Create a faceted map by year
+ggplot(hindu_map_data, aes(x = long, y = lat, group = group, fill = count)) +
+  geom_polygon(color = "black", linewidth = 0.2) +
+  scale_fill_gradient(low = "white", high = "red", 
+                      name = "Hindu Voters", limits = c(0, max_count)) +
+  ggtitle("Hindu Voters by State and Year") +
+  coord_quickmap() +
+  theme_void() +
+  facet_wrap(~year)
+```
+
+# Create Bar Plot
+
+```{r}
+# Aggregate the total count of Hindu respondents by year
+hindu_by_year <- as.data.frame(table(hindu_data$year))
+colnames(hindu_by_year) <- c("year", "count")
+
+# Convert 'year' to numeric for plotting
+hindu_by_year$year <- as.numeric(as.character(hindu_by_year$year))
+
+# Create the bar plot
+ggplot(hindu_by_year, aes(x = year, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  ggtitle("Total Hindu Respondents Per Year") +
+  xlab("Year") +
+  ylab("Number of Respondents") +
+  theme_minimal()
+```
+
